@@ -1,0 +1,18 @@
+{
+  "name": "com.sixways.unityshaderstripper",
+  "displayName": "Shader Stripper",
+  "description": "Shader Stripper",
+  "author": "Aim Lab",
+  "contributors": [{
+    "name": "SixWays"
+  }],
+  "version": "3.5.1",
+  "unity": "2019.3",
+  "keywords": [
+    "Shader"
+  ],
+  "repository": {
+    "url": "git+https://github.com/statespacelabs/UnityShaderStripper.git",
+    "type": "git"
+  }
+}
