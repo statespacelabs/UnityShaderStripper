@@ -1,10 +1,6 @@
-﻿#if UNITY_2018_2_OR_NEWER
-using System.Collections;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using System.Text;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Rendering;
@@ -305,4 +301,3 @@ namespace Sigtrap.Editors.ShaderStripper {
 		#endregion
 	}
 }
-#endif

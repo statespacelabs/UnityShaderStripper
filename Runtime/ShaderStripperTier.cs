@@ -1,10 +1,7 @@
-﻿#if UNITY_EDITOR && UNITY_2018_2_OR_NEWER
-using System.Collections;
+﻿#if UNITY_EDITOR
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEditor;
 using UnityEditor.Rendering;
 
 namespace Sigtrap.Editors.ShaderStripper {
