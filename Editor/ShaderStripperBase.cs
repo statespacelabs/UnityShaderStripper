@@ -1,10 +1,8 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-#if UNITY_EDITOR
-using UnityEditor;
 using UnityEditor.Rendering;
-#endif
+using UnityEditor;
 
 namespace Sigtrap.Editors.ShaderStripper {
 	public class ShaderLog {
@@ -63,15 +61,11 @@ namespace Sigtrap.Editors.ShaderStripper {
 		}
 
 		#region Static
-		#if UNITY_EDITOR
+
 		static bool _deepLogs = false;
 		static List<string> _log = new List<string>();
 		public static string GetKeywordName(ShaderKeyword k){
-			#if UNITY_2018_3_OR_NEWER
 			return k.GetKeywordName();
-			#else
-			return = k.GetName();
-			#endif
 		}
 		public static void OnPreBuild(bool deepLogs){
 			_log.Clear();
@@ -160,7 +154,7 @@ namespace Sigtrap.Editors.ShaderStripper {
 					break;
 			}
 		}
-		#endif
+
 		#endregion
 
 		#region Serialized
@@ -181,7 +175,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 		#endregion
 
 		#region Instance
-		#if UNITY_EDITOR
 		public virtual string description {get {return null;}}
 		public virtual string help {get {return null;}}
 		/// <summary>
@@ -297,7 +290,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 			throw new System.NotImplementedException("If _checkVariants is true, must override MatchVariant()");
 		}
 		public virtual void OnGUI(){}
-		#endif
 		#endregion
 	}
 }

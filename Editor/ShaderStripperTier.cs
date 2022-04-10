@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor.Rendering;
@@ -66,4 +65,3 @@ namespace Sigtrap.Editors.ShaderStripper {
         }
     }
 }
-#endif

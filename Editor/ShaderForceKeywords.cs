@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
+using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
-#if UNITY_EDITOR
-using UnityEditor.Rendering;
-#endif
+
 
 namespace Sigtrap.Editors.ShaderStripper {
     /// <summary>
@@ -34,7 +33,6 @@ namespace Sigtrap.Editors.ShaderStripper {
         [SerializeField]
         ForceKeyword[] _forceKeywords;
 
-        #if UNITY_EDITOR
         protected override bool _checkShader {get {return false;}}
         protected override bool _checkPass {get {return false;}}
         protected override bool _checkVariants {get {return false;}}
@@ -68,6 +66,5 @@ namespace Sigtrap.Editors.ShaderStripper {
             }
             return true;
         }
-        #endif
     }
 }

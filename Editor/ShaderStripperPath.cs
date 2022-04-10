@@ -1,7 +1,5 @@
 ﻿using UnityEngine;
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
 
 namespace Sigtrap.Editors.ShaderStripper {
     /// <summary>
@@ -12,7 +10,6 @@ namespace Sigtrap.Editors.ShaderStripper {
         [SerializeField]
         StringMatch[] _pathBlacklist;
 
-        #if UNITY_EDITOR
         protected override bool _checkPass {get {return false;}}
         protected override bool _checkVariants {get {return false;}}
         protected override bool _checkShader {get {return true;}}
@@ -25,6 +22,5 @@ namespace Sigtrap.Editors.ShaderStripper {
             }
             return true;
         }
-        #endif
     }
 }

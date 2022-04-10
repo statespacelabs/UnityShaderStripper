@@ -1,9 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-#if UNITY_EDITOR
 using UnityEditor.Rendering;
-#endif
 
 namespace Sigtrap.Editors.ShaderStripper {
 	/// <summary>
@@ -18,7 +16,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 		[SerializeField][Tooltip("If variant uses ANY of these keywords, will be considered for stripping.")]
 		List<string> _blacklistedKeywords;
 
-		#if UNITY_EDITOR
 		public override string description {get {return "Strips shaders based on shader names, pass types and keywords.";}}
 		public override string help {
 			get {
@@ -72,6 +69,5 @@ namespace Sigtrap.Editors.ShaderStripper {
 			}
 			return false;
 		}
-		#endif
 	}
 }

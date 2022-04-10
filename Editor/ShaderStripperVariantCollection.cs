@@ -2,10 +2,8 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Text;
-#if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Rendering;
-#endif
 
 namespace Sigtrap.Editors.ShaderStripper {
     /// <summary>
@@ -45,7 +43,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 		}
 		#endregion
 
-        #if UNITY_EDITOR
 		static readonly string[] VR_KEYWORDS = new string[]{
 			"UNITY_SINGLE_PASS_STEREO", "STEREO_INSTANCING_ON", "STEREO_MULTIVIEW_ON"
 		};
@@ -476,6 +473,5 @@ namespace Sigtrap.Editors.ShaderStripper {
 			}
 			_dirty = false;
 		}
-        #endif
     }
 }
