@@ -2,12 +2,12 @@
   "name": "com.sixways.unityshaderstripper",
   "displayName": "Shader Stripper",
   "description": "Shader Stripper",
-  "author": "Aim Lab",
+  "author": "SixWays",
   "contributors": [{
-    "name": "SixWays"
+    "name": "Aim Lab"
   }],
-  "version": "3.5.1",
-  "unity": "2019.3",
+  "version": "4.0.0",
+  "unity": "2021.1",
   "keywords": [
     "Shader"
   ],
