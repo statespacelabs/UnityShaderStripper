@@ -127,17 +127,21 @@ namespace Sigtrap.Editors.ShaderStripper {
 					yaml.Add(f);
 					indent = myIndent;
 				}
-                #endregion
+				#endregion
 
 				#region Iterate over shaders
-				for (i=0; i<yaml.Count; ++i){
+				var yamlCount = yaml.Count;
+				for (i=0; i<yamlCount; ++i){
 					string y = yaml[i];
 					if (yaml[i].Contains("first:")){
 						string guid = GetValueFromYaml(y, "guid");
 						Shader s = AssetDatabase.LoadAssetAtPath<Shader>(AssetDatabase.GUIDToAssetPath(guid));
-
 						// Move to variants contents (skip current line, "second:" and "variants:")
 						i += 3;
+						if (i >= yamlCount)
+						{
+							i = yamlCount - 1;
+						}
 						indent = GetYamlIndent(yaml[i]);
 						var sv = new ShaderVariantCollection.ShaderVariant();
 						for (; i<yaml.Count; ++i){
