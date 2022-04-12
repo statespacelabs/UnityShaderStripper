@@ -1,66 +1,43 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Rendering;
+﻿using UnityEngine;
 using UnityEditor;
-using UnityEditor.Build;
-using UnityEditor.Rendering;
-using System.Linq;
 
 namespace Sigtrap.Editors.ShaderStripper {
-	public class ShaderStripperEditor : EditorWindow, IPreprocessShaders, IPreprocessBuildWithReport, IPostprocessBuildWithReport {
-		public const string KEY_LOG = "ShaderStripperLogPath";
-		public const string KEY_ENABLE = "ShaderStripperGlobalEnable";
-		public const string KEY_DEEP_LOG = "ShaderStripperDeepLog";
+	public class ShaderStripperEditor : EditorWindow {
 
 		[MenuItem("Tools/Sigtrap/Shader Stripper")]
-		public static void Launch(){
-			if (_i == null){
+
+		public static void Launch() {
+			if (_i == null) {
 				_i = ScriptableObject.CreateInstance<ShaderStripperEditor>();
 			}
 			_i.Show();
 		}
+
 		static ShaderStripperEditor _i;
 
-		static bool _enabled;
-		static bool _deepLogs;
-		static string _logPath;
-		static List<ShaderStripperBase> _strippers = new List<ShaderStripperBase>();
-		static System.Diagnostics.Stopwatch _swStrip = new System.Diagnostics.Stopwatch();
-		static System.Diagnostics.Stopwatch _swBuild = new System.Diagnostics.Stopwatch();
-		
-		public int callbackOrder {get {return 0;}}
+		static ShaderStripperUtility _u;
+
 		Vector2 _scroll;
-		ShaderLog _keptLog = new ShaderLog("SHADERS-KEPT");
-		ShaderLog _allKeywords = new ShaderLog("KEYWORDS");
-		ShaderLog _keptKeywords = new ShaderLog("KEYWORDS-KEPT");
-		ShaderLog _allPlatformKeywordNames = new ShaderLog("PLATFORM-KEYWORDS");
-		ShaderLog _keptPlatformKeywordNames = new ShaderLog("PLATFORM-KEYWORDS-KEPT");
-		List<BuiltinShaderDefine> _allPlatformKeywords = new List<BuiltinShaderDefine>();
-		List<BuiltinShaderDefine> _keptPlatformKeywords = new List<BuiltinShaderDefine>();
-		int _rawCount, _keptCount;
 
 		#region GUI
-		bool GetEnabled(){
-			if (EditorPrefs.HasKey(KEY_ENABLE)){
-				return EditorPrefs.GetBool(KEY_ENABLE);
-			} else {
-				EditorPrefs.SetBool(KEY_ENABLE, true);
-				return true;
-			}
-		}
+
 
 		void OnEnable(){
 			titleContent = new GUIContent("Shader Stripper");
-			RefreshSettings();
-			_logPath = EditorPrefs.GetString(KEY_LOG);
-			_enabled = GetEnabled();
-			_deepLogs = EditorPrefs.GetBool(KEY_DEEP_LOG);
+
+			if (_u == null) _u = new ShaderStripperUtility();
+
+			ShaderStripperUtility.RefreshSettings();
+			ShaderStripperUtility._logPath = EditorPrefs.GetString(ShaderStripperUtility.KEY_LOG);
+			ShaderStripperUtility._enabled = ShaderStripperUtility.GetEnabled();
+			ShaderStripperUtility._deepLogs = EditorPrefs.GetBool(ShaderStripperUtility.KEY_DEEP_LOG);
 		}
 		void OnGUI(){
 			Color gbc = GUI.backgroundColor;
 
 			EditorGUILayout.Space();
-			if (!_enabled){
+			if (!ShaderStripperUtility._enabled)
+			{
 				GUI.backgroundColor = Color.magenta;
 			}
 			EditorGUILayout.BeginVertical(EditorStyles.helpBox); {
@@ -73,16 +50,16 @@ namespace Sigtrap.Editors.ShaderStripper {
 					
 					GUI.backgroundColor = Color.blue;
 					if (GUILayout.Button("Refresh Settings", GUILayout.Width(125))){
-						RefreshSettings();
+						ShaderStripperUtility.RefreshSettings();
 					}
 					GUI.backgroundColor = gbc;
 				} EditorGUILayout.EndHorizontal();
 
 				// Toggle stripping
 				EditorGUI.BeginChangeCheck(); {
-					_enabled = EditorGUILayout.ToggleLeft("Enable Stripping", _enabled);
+					ShaderStripperUtility._enabled = EditorGUILayout.ToggleLeft("Enable Stripping", ShaderStripperUtility._enabled);
 				} if (EditorGUI.EndChangeCheck()){
-					EditorPrefs.SetBool(KEY_ENABLE, _enabled);
+					EditorPrefs.SetBool(ShaderStripperUtility.KEY_ENABLE, ShaderStripperUtility._enabled);
 					Repaint();
 				}
 
@@ -90,18 +67,18 @@ namespace Sigtrap.Editors.ShaderStripper {
 				EditorGUILayout.Space();
 				EditorGUI.BeginChangeCheck(); {
 					EditorGUILayout.BeginHorizontal(); {
-						_logPath = EditorGUILayout.TextField("Log output file folder", _logPath);
+						ShaderStripperUtility._logPath = EditorGUILayout.TextField("Log output file folder", ShaderStripperUtility._logPath);
 						if (GUILayout.Button("...", GUILayout.Width(25))){
-							string path = EditorUtility.OpenFolderPanel("Select log output folder", _logPath, "");
+							string path = EditorUtility.OpenFolderPanel("Select log output folder", ShaderStripperUtility._logPath, "");
 							if (!string.IsNullOrEmpty(path)){
-								_logPath = path;
+								ShaderStripperUtility._logPath = path;
 							}
 						}
 					} EditorGUILayout.EndHorizontal();
-					_deepLogs = EditorGUILayout.ToggleLeft("Deep logs", _deepLogs);
+					ShaderStripperUtility._deepLogs = EditorGUILayout.ToggleLeft("Deep logs", ShaderStripperUtility._deepLogs);
 				} if (EditorGUI.EndChangeCheck()){
-					EditorPrefs.SetString(KEY_LOG, _logPath);
-					EditorPrefs.SetBool(KEY_DEEP_LOG, _deepLogs);
+					EditorPrefs.SetString(ShaderStripperUtility.KEY_LOG, ShaderStripperUtility._logPath);
+					EditorPrefs.SetBool(ShaderStripperUtility.KEY_DEEP_LOG, ShaderStripperUtility._deepLogs);
 					Repaint();
 				}
 				
@@ -109,10 +86,10 @@ namespace Sigtrap.Editors.ShaderStripper {
 				EditorGUILayout.Space();
 				bool reSort = false;
 				_scroll = EditorGUILayout.BeginScrollView(_scroll, EditorStyles.helpBox); {
-					for (int i=0; i<_strippers.Count; ++i){
-						var s = _strippers[i];
+					for (int i=0; i< ShaderStripperUtility._strippers.Count; ++i){
+						var s = ShaderStripperUtility._strippers[i];
 						if (s == null){
-							RefreshSettings();
+							ShaderStripperUtility.RefreshSettings();
 							break;
 						}
 						var so = new SerializedObject(s);
@@ -134,15 +111,15 @@ namespace Sigtrap.Editors.ShaderStripper {
 									GUI.enabled = i > 0;
 									if (GUILayout.Button("UP")){
 										--so.FindProperty("_order").intValue;
-										var soPrev = new SerializedObject(_strippers[i-1]);
+										var soPrev = new SerializedObject(ShaderStripperUtility._strippers[i-1]);
 										++soPrev.FindProperty("_order").intValue;
 										soPrev.ApplyModifiedProperties();
 										reSort = true;
 									}
-									GUI.enabled = i < (_strippers.Count-1);
+									GUI.enabled = i < (ShaderStripperUtility._strippers.Count-1);
 									if (GUILayout.Button("DOWN")){
 										++so.FindProperty("_order").intValue;
-										var soNext = new SerializedObject(_strippers[i+1]);
+										var soNext = new SerializedObject(ShaderStripperUtility._strippers[i+1]);
 										--soNext.FindProperty("_order").intValue;
 										soNext.ApplyModifiedProperties();
 										reSort = true;
@@ -176,180 +153,12 @@ namespace Sigtrap.Editors.ShaderStripper {
 				} EditorGUILayout.EndScrollView();
 				
 				if (reSort){
-					SortSettings();
+					ShaderStripperUtility.SortSettings();
 				}
 			} EditorGUILayout.EndVertical();
 			GUI.backgroundColor = gbc;
 		}
-		void RefreshSettings(){
-			_strippers.Clear();
-			foreach (var guid in AssetDatabase.FindAssets("t:ShaderStripperBase")){
-				string path = AssetDatabase.GUIDToAssetPath(guid);
-				_strippers.Add(AssetDatabase.LoadAssetAtPath<ShaderStripperBase>(path));
-			}
-			SortSettings();
-		}
-		void SortSettings(){
-			_strippers = _strippers.OrderBy(x=>new SerializedObject(x).FindProperty("_order").intValue).ToList();
-			// Apply new sort orders
-			for (int i=0; i<_strippers.Count; ++i){
-				var so = new SerializedObject(_strippers[i]);
-				so.FindProperty("_order").intValue = i;
-				so.ApplyModifiedProperties();
-			}
-		}
-		#endregion
 
-		#region Stripping Callbacks
-		public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report){
-			_logPath = EditorPrefs.GetString(KEY_LOG);
-			_enabled = GetEnabled();
-
-			if (_enabled){
-				Debug.Log("Initialising ShaderStrippers");
-				if (!string.IsNullOrEmpty(_logPath)){
-					Debug.Log("Logfiles will be created in "+_logPath);
-				}
-				_keptLog.Clear();
-				_keptLog.Add("Unstripped Shaders:");
-				RefreshSettings();
-				ShaderStripperBase.OnPreBuild(_deepLogs);
-				foreach (var s in _strippers){
-					if (s.active){
-						s.Initialize();
-					}
-				}
-				_swStrip.Reset();
-				_swBuild.Reset();
-				_swBuild.Start();
-			} else {
-				Debug.Log("ShaderStripper DISABLED");
-			}
-		} 
-		static readonly BuiltinShaderDefine[] _platformKeywords = (BuiltinShaderDefine[])System.Enum.GetValues(typeof(BuiltinShaderDefine));
-		public void OnProcessShader(Shader shader, ShaderSnippetData snippet, IList<ShaderCompilerData> data){
-			if (!_enabled) return;
-			_rawCount += data.Count;
-
-			var builtins = (BuiltinShaderDefine[])System.Enum.GetValues(typeof(BuiltinShaderDefine));
-
-			if (_deepLogs){
-				for (int i=0; i<data.Count; ++i){
-					foreach (var k in data[i].shaderKeywordSet.GetShaderKeywords()){
-						string sn = ShaderStripperBase.GetKeywordName(k);
-						if (!_allKeywords.Contains(sn)){
-							_allKeywords.Add(sn);
-						}
-					}
-					var pks = data[i].platformKeywordSet;
-					foreach (var b in builtins){
-						if (pks.IsEnabled(b)){
-							if (!_allPlatformKeywords.Contains(b)){
-								_allPlatformKeywords.Add(b);
-								_allPlatformKeywordNames.Add(b.ToString());
-							}
-						}
-					}
-				}
-			}
-
-			_swStrip.Start();
-			for (int i=0; i<_strippers.Count; ++i){
-				var s = _strippers[i];
-				if (!s.active) continue;
-				s.Strip(shader, snippet, data);
-				if (data.Count == 0) break;
-			}
-			_swStrip.Stop();
-			if (data.Count > 0){
-				_keptCount += data.Count;
-				_keptLog.Add(string.Format(
-					"    {0}::[{1}]{2} [{3} variants]", shader.name, 
-					snippet.passType, snippet.passName, data.Count
-				));
-
-				if (_deepLogs){
-					foreach (var d in data){
-						string varLog = string.Format(
-							"\t\t[{0}][{1}] ", d.graphicsTier, d.shaderCompilerPlatform
-						);
-						foreach (var k in d.shaderKeywordSet.GetShaderKeywords()){
-							varLog += ShaderStripperBase.GetKeywordName(k) + " ";
-						}
-
-						varLog += "\n\t\t\t";
-						foreach (var b in _platformKeywords){
-							if (d.platformKeywordSet.IsEnabled(b)){
-								varLog += b.ToString() + " ";
-							}
-						}
-
-						varLog += string.Format("\n\t\t\tREQ: {0}", d.shaderRequirements.ToString());
-						_keptLog.Add(varLog);
-
-						foreach (var k in d.shaderKeywordSet.GetShaderKeywords()){
-							string sn = ShaderStripperBase.GetKeywordName(k);
-							if (!_keptKeywords.Contains(sn)){
-								_keptKeywords.Add(sn);
-							}
-						}
-
-						var pks = d.platformKeywordSet;
-						foreach (var b in builtins){
-							if (pks.IsEnabled(b)){
-								if (!_keptPlatformKeywords.Contains(b)){
-									_keptPlatformKeywords.Add(b);
-									_keptPlatformKeywordNames.Add(b.ToString());
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		public void OnPostprocessBuild(UnityEditor.Build.Reporting.BuildReport report){
-			if (!_enabled) return;
-
-			_swBuild.Stop();
-			
-			string header = string.Format(
-				"Build Time: {0}ms\nStrip Time: {1}ms\nTotal shaders built: {2}\nTotal shaders stripped: {3}",
-				_swBuild.ElapsedMilliseconds, _swStrip.ElapsedMilliseconds, _keptCount, _rawCount-_keptCount
-			);
-			Debug.Log(header);
-
-			var strippedKeywords = new ShaderLog("KEYWORDS-STRIPPED");
-			foreach (var k in _allKeywords.log){
-				if (!_keptKeywords.Contains(k)){
-					strippedKeywords.Add(k);
-				}
-			}
-
-			var strippedPlatformKeywords = new ShaderLog("PLATFORM-KEYWORDS-STRIPPED");
-			foreach (var k in _allPlatformKeywordNames.log){
-				if (!_keptPlatformKeywordNames.Contains(k)){
-					strippedPlatformKeywords.Add(k);
-				}
-			}
-
-			string logPath = EditorPrefs.GetString(ShaderStripperEditor.KEY_LOG);
-			ShaderStripperBase.OnPostBuild(
-				logPath, header, _keptLog, _allKeywords, _keptKeywords,
-				_allPlatformKeywordNames, _keptPlatformKeywordNames,
-				strippedKeywords, strippedPlatformKeywords
-			);
-
-			_swStrip.Reset();
-			_swBuild.Reset();
-			_keptLog.Clear();
-			_keptCount = 0;
-			_allKeywords.Clear();
-			_keptKeywords.Clear();
-			_allPlatformKeywordNames.Clear();
-			_allPlatformKeywords.Clear();
-			_keptPlatformKeywordNames.Clear();
-			_keptPlatformKeywords.Clear();
-		}
 		#endregion
 	}
 }
