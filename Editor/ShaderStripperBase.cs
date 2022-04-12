@@ -158,11 +158,12 @@ namespace Sigtrap.Editors.ShaderStripper {
 		#endregion
 
 		#region Serialized
+#pragma warning disable CS0414
 		[SerializeField, HideInInspector]
 		bool _expanded = true;
 		[SerializeField, HideInInspector]
 		int _order = -1;
-
+#pragma warning restore CS0414
 		[SerializeField]
 		bool _active = false;
 		public bool active {get {return _active;}}
