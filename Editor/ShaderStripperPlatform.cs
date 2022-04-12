@@ -10,12 +10,9 @@ namespace Sigtrap.Editors.ShaderStripper {
     public class ShaderStripperPlatform : ShaderStripperBase {
         [SerializeField][Tooltip("If checked, use as whitelist. Otherwise, blacklist.")]
         bool _whitelist;
-        #if UNITY_EDITOR
+
         [SerializeField]
         List<ShaderCompilerPlatform> _platforms;
-        #endif
-
-        #if UNITY_EDITOR
         protected override bool _checkPass {get {return false;}}
         protected override bool _checkVariants {get {return true;}}
         protected override bool _checkShader {get {return false;}}
@@ -24,6 +21,5 @@ namespace Sigtrap.Editors.ShaderStripper {
             bool contains = _platforms.Contains(variantData.shaderCompilerPlatform);
             return _whitelist ? !contains : contains;
         }
-        #endif
     }
 }
