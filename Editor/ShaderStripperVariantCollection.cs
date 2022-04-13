@@ -144,6 +144,18 @@ namespace Sigtrap.Editors.ShaderStripper {
 						string guid = GetValueFromYaml(y, "guid");
 						string fileID = GetValueFromYaml(y, "fileID");
 						Shader s = AssetDatabase.LoadAssetAtPath<Shader>(AssetDatabase.GUIDToAssetPath(guid));
+						if (s == null)
+                        {
+							var fileIDint = int.Parse(fileID);
+							if (fileIDint == 46)
+                            {
+								s = Shader.Find("Standard");
+                            }
+							else if (fileIDint == 45)
+                            {
+								s = Shader.Find("Standard (Specular setup)");
+							}
+                        }
 						// Move to variants contents (skip current line, "second:" and "variants:")
 
 						if (yaml[i + 2].Contains("[]"))
@@ -422,6 +434,7 @@ namespace Sigtrap.Editors.ShaderStripper {
 			string guid;
 			long fileID;
 			AssetDatabase.TryGetGUIDAndLocalFileIdentifier(shader, out guid, out fileID);
+
 			bool whitelistedWithNoKeywords = false;
 			if (string.Equals(guid, "0000000000000000f000000000000000"))
 			{
