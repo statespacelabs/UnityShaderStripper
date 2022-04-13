@@ -30,6 +30,9 @@ namespace Sigtrap.Editors.ShaderStripper {
 		[SerializeField][Tooltip("These passtypes will be ignored (not stripped)")]
 		List<PassType> _ignorePassTypes;
 
+		List<long> builtinShadersWithNoKeywords = new List<long>();
+		List<string> customShadersWithNoKeywords = new List<string>();
+
 		bool _valid = false;
 		bool _dirty = false;
 
@@ -86,8 +89,12 @@ namespace Sigtrap.Editors.ShaderStripper {
 			return true;
 		}
         public override void Initialize(){
+
+			builtinShadersWithNoKeywords.Clear();
+			customShadersWithNoKeywords.Clear();
+
 			ReplaceOverwrittenCollections();
-			
+
 			_tempExcludes.Clear();
 			if (_allowVrVariants){
 				_tempExcludes.AddRange(VR_KEYWORDS);
@@ -135,15 +142,26 @@ namespace Sigtrap.Editors.ShaderStripper {
 					string y = yaml[i];
 					if (yaml[i].Contains("first:")){
 						string guid = GetValueFromYaml(y, "guid");
+						string fileID = GetValueFromYaml(y, "fileID");
 						Shader s = AssetDatabase.LoadAssetAtPath<Shader>(AssetDatabase.GUIDToAssetPath(guid));
 						// Move to variants contents (skip current line, "second:" and "variants:")
+
+						if (yaml[i + 2].Contains("[]"))
+						{
+							AddToShadersWithNoKeywords(guid, fileID);
+							continue;
+						}
+
 						i += 3;
+
 						if (i >= yamlCount)
 						{
-							i = yamlCount - 1;
+							break;
 						}
+
 						indent = GetYamlIndent(yaml[i]);
 						var sv = new ShaderVariantCollection.ShaderVariant();
+						var variantNumber = 0;
 						for (; i<yaml.Count; ++i){
 							y = yaml[i];
 
@@ -188,7 +206,14 @@ namespace Sigtrap.Editors.ShaderStripper {
 								sv.passType = (PassType)int.Parse(GetValueFromYaml(y, "passType"));
 							}
 							if (YamlLineHasKey(y, "keywords")){
+								if (variantNumber == 0 && y.EndsWith(": ") && !yaml[i + 2].Contains("keywords:"))
+								{
+									AddToShadersWithNoKeywords(guid, fileID);
+								}
+
 								sv.keywords = GetValuesFromYaml(y, "keywords", _tempExcludes);
+								
+								variantNumber++;
 							}
 						}
 						// Get final variant
@@ -274,13 +299,29 @@ namespace Sigtrap.Editors.ShaderStripper {
 
 					Debug.Log(log, AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>(file));
 				} catch (System.Exception ex){
-					Debug.LogError("Error merging ShaderVariantCollections. Exception follows.");
+					Debug.LogError("Error merging ShaderVariantCollections. Exception follows: " + ex);
 					throw;
 				}
 			}
 
 			_valid = (_variantsByShader != null && _variantsByShader.Count > 0);
 		}
+
+        private void AddToShadersWithNoKeywords(string guid, string fileID)
+        {
+			var fileIDlong = long.Parse(fileID);
+			//is builtin
+			if (string.Equals(guid, "0000000000000000f000000000000000"))
+			{
+				builtinShadersWithNoKeywords.Add(fileIDlong);
+			}
+			//is custom
+			else
+			{
+				customShadersWithNoKeywords.Add(guid);
+			}
+		}
+
         int GetYamlIndent(string line){
 			for (int i=0; i<line.Length; ++i){
 				if (line[i] != ' ' && line[i] != '-') return i;
@@ -364,20 +405,43 @@ namespace Sigtrap.Editors.ShaderStripper {
         static List<string> _tempRequestedKeywordsToMatch = new List<string>();
         static List<string> _tempRequestedKeywordsToMatchCached = new List<string>();
 		static List<string> _tempCollectedKeywordsSorted = new List<string>();
-        protected override bool StripCustom(Shader shader, ShaderSnippetData passData, IList<ShaderCompilerData> variantData){
+		protected override bool StripCustom(Shader shader, ShaderSnippetData passData, IList<ShaderCompilerData> variantData) {
 			// Don't strip anything if no collections present
 			if (!_valid) return true;
-            // Always ignore built-in shaders
-            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(shader))) return true;
+			// Always ignore built-in shaders
+			if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(shader))) return true;
+
 			// Ignore shaders by name
-			foreach (var s in _ignoreShadersByName){
+			foreach (var s in _ignoreShadersByName) {
 				if (s.Evaluate(shader.name)) return true;
 			}
+
 			// Ignore passes by type
 			if (_ignorePassTypes.Contains(passData.passType)) return true;
 
-            // Try to match shader
-            Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>> collectedVariantsByPass = null;
+			string guid;
+			long fileID;
+			AssetDatabase.TryGetGUIDAndLocalFileIdentifier(shader, out guid, out fileID);
+			bool whitelistedWithNoKeywords = false;
+			if (string.Equals(guid, "0000000000000000f000000000000000"))
+			{
+				if (builtinShadersWithNoKeywords.Contains(fileID))
+				{
+					whitelistedWithNoKeywords = true;
+				}
+			}
+			else if (customShadersWithNoKeywords.Contains(guid))
+			{
+				whitelistedWithNoKeywords = true;
+			}
+
+			if (whitelistedWithNoKeywords)
+			{
+				return true;
+			}
+
+			// Try to match shader
+			Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>> collectedVariantsByPass = null;
             if (_variantsByShader.TryGetValue(shader, out collectedVariantsByPass)){
                 // Try to match pass
                 List<ShaderVariantCollection.ShaderVariant> collectedPassVariants = null;
@@ -390,7 +454,9 @@ namespace Sigtrap.Editors.ShaderStripper {
                         // Fill temp buffer to fill OTHER temp buffer each time SIGH
                         _tempRequestedKeywordsToMatchCached.Clear();
 						var sks = variantData[i].shaderKeywordSet.GetShaderKeywords();
-                        foreach (var sk in sks){
+						bool variantMatched = false;
+						
+						foreach (var sk in sks){
 							string n = GetKeywordName(sk);
 							bool add = true;
 							// Don't look for VR or instanced variants
@@ -402,8 +468,9 @@ namespace Sigtrap.Editors.ShaderStripper {
 							if (add){
                             	_tempRequestedKeywordsToMatchCached.Add(n);
 							}
-                        }
-						bool variantMatched = false;
+						}
+						
+						
 
                         // Loop over cached variants
                         foreach (var collectedVariant in collectedPassVariants){
