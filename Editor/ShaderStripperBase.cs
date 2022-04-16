@@ -72,6 +72,15 @@ namespace Sigtrap.Editors.ShaderStripper {
 			_deepLogs = deepLogs;
 		}
 		public static void OnPostBuild(string logFolderPath, string header, params ShaderLog[] logs){
+#if SHADER_STRIPPING_LOGGING
+			var strippedlog = header + "\n";
+			foreach (var line in _log)
+			{
+				strippedlog += line + "\n";
+			}
+			Debug.Log("Stripped Shaders : " + strippedlog);
+#endif
+		
 			if (!string.IsNullOrEmpty(logFolderPath)){
 				string logPath = logFolderPath;
 				if (!logPath.EndsWith("/") && !logPath.EndsWith("\\")){
