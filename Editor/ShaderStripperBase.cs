@@ -62,16 +62,19 @@ namespace Sigtrap.Editors.ShaderStripper {
 
 		#region Static
 
-		static bool _deepLogs = false;
+		static bool _deepLogs = true;
 		static List<string> _log = new List<string>();
+
 		public static string GetKeywordName(ShaderKeyword k){
 			return k.GetKeywordName();
 		}
+
 		public static void OnPreBuild(bool deepLogs){
 			_log.Clear();
 			_deepLogs = deepLogs;
 		}
-		public static void OnPostBuild(string logFolderPath, string header, params ShaderLog[] logs)
+
+		public static void OnPostBuild(string header, params ShaderLog[] logs)
 		{
 #if SHADER_STRIPPING_LOGGING
 			if (_log != null && _log.Count > 0)
@@ -95,45 +98,23 @@ namespace Sigtrap.Editors.ShaderStripper {
 				Debug.Log("Kept Shaders : " + keptLog);
 			}
 #endif
-
-			if (!string.IsNullOrEmpty(logFolderPath)){
-				string logPath = logFolderPath;
-				if (!logPath.EndsWith("/") && !logPath.EndsWith("\\")){
-					logPath += "/";
-				}
-				
-				string date = System.DateTime.Now.ToString("yyyy-MM-dd");
-				string strippedLogFile = string.Format(
-					"{0}ShaderStripperLog_{1}.txt", 
-					logPath, date						
-				);
-				_log.Insert(0, header);
-				System.IO.File.WriteAllLines(strippedLogFile, _log.ToArray());
-
-				foreach (var l in logs){
-					if (l != null && l.Count > 0){
-						l.Insert(0, header);
-						string logFile = string.Format(
-							"{0}ShaderStripperLog_{1}_{2}.txt", 
-							logPath, date, l.logName
-						);
-						System.IO.File.WriteAllLines(logFile, l.ToArray());
-					}
-				}
-				Debug.Log("ShaderStripper logs created at "+logPath);
-			}
 			_log.Clear();
 		}
+
 		static protected void LogRemoval(ShaderStripperBase stripper, Shader shader, ShaderSnippetData pass){
 			if (!stripper._logOutput) return;
+#if SHADER_STRIPPING_LOGGING
 			string log = string.Format(
 				"Stripping shader [{0}] pass type [{1}]\n\tShaderStripper: {2}",
 				shader.name, pass.passType, stripper.name
 			);
 			_log.Add(log);
+#endif
 		}
+
 		static protected void LogRemoval(ShaderStripperBase stripper, Shader shader, ShaderSnippetData pass, int variantIndex, int variantCount, ShaderCompilerData variant){
 			if (!stripper._logOutput) return;
+#if SHADER_STRIPPING_LOGGING
 			string log = null;
 			if (_deepLogs){
 				log = string.Format(
@@ -159,9 +140,12 @@ namespace Sigtrap.Editors.ShaderStripper {
 				);
 			}
 			_log.Add(log);
+#endif
 		}
-		static protected void LogMessage(ShaderStripperBase stripper, string message, MessageType type=MessageType.None){
+		static protected void LogMessage(ShaderStripperBase stripper, string message, MessageType type=MessageType.None)
+		{
 			if (!stripper._logOutput) return;
+#if SHADER_STRIPPING_LOGGING
 			string log = string.Format("ShaderStripper {0}: {1}", stripper.name, message);
 			switch (type){
 				case MessageType.Info:
@@ -177,6 +161,7 @@ namespace Sigtrap.Editors.ShaderStripper {
 					_log.Add(log);
 					break;
 			}
+#endif
 		}
 
 		#endregion
@@ -198,9 +183,9 @@ namespace Sigtrap.Editors.ShaderStripper {
 		[SerializeField]
 		protected bool _logOutput;
 
-		#endregion
+#endregion
 
-		#region Instance
+#region Instance
 		public virtual string description {get {return null;}}
 		public virtual string help {get {return null;}}
 		/// <summary>
@@ -316,6 +301,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 			throw new System.NotImplementedException("If _checkVariants is true, must override MatchVariant()");
 		}
 		public virtual void OnGUI(){}
-		#endregion
+#endregion
 	}
 }

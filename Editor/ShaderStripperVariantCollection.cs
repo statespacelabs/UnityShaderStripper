@@ -253,34 +253,43 @@ namespace Sigtrap.Editors.ShaderStripper {
 						}
 					}
                 }
-                #endregion
+				#endregion
 
-                LogMessage(this, "Parsing ShaderVariantCollection "+c.name);
+#if SHADER_STRIPPING_LOGGING
+				LogMessage(this, "Parsing ShaderVariantCollection "+c.name);
                 // Loop over shaders
-				foreach (var s in _variantsByShader){
+				foreach (var s in _variantsByShader)
+				{
 					string log = "Shader: " + s.Key.name;
                     // Loop over passes
-                    foreach (var p in s.Value){
+                    foreach (var p in s.Value)
+					{
                         log += string.Format("\n   Pass: ({1:00}){0}", p.Key, (int)p.Key);
                         // Loop over variants
-                        for (int v=0; v<p.Value.Count; ++v){
+                        for (int v=0; v<p.Value.Count; ++v)
+						{
                             log += string.Format("\n      Variant [{0}]:\t", v);
                             // Loop over keywords
 							var ks = p.Value[v].keywords;
-							if (ks != null && ks.Length != 0){
+							if (ks != null && ks.Length != 0)
+							{
 								bool first = true;
-								foreach (var k in ks){
+								foreach (var k in ks)
+								{
 									if (!first) log += ", ";
 									log += k;
 									first = false;
 								}
-							} else {
+							} 
+							else 
+							{
 								log += "<no keywords>";
 							}
                         }
                     }
 					LogMessage(this, log);
 				}
+#endif
 			}
 
 			// Merge collections

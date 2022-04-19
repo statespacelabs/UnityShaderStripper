@@ -9,13 +9,7 @@ using Sigtrap.Editors.ShaderStripper;
 
 public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuildWithReport, IPostprocessBuildWithReport
 {
-	public const string KEY_LOG = "ShaderStripperLogPath";
-	public const string KEY_ENABLE = "ShaderStripperGlobalEnable";
-	public const string KEY_DEEP_LOG = "ShaderStripperDeepLog";
-
 	public int callbackOrder { get { return 0; } }
-
-
 
 	static System.Diagnostics.Stopwatch _swStrip = new System.Diagnostics.Stopwatch();
 	static System.Diagnostics.Stopwatch _swBuild = new System.Diagnostics.Stopwatch();
@@ -29,27 +23,15 @@ public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuil
 	List<BuiltinShaderDefine> _keptPlatformKeywords = new List<BuiltinShaderDefine>();
 	int _rawCount, _keptCount;
 
-	public static bool _enabled;
-	public static bool _deepLogs;
-
-	public static string _logPath;
-
-
+	private static bool _enabled = true;
+	private static bool _deepLogs = true;
 
 
 	public static List<ShaderStripperBase> _strippers = new List<ShaderStripperBase>();
 
 	public static bool GetEnabled()
 	{
-		if (EditorPrefs.HasKey(KEY_ENABLE))
-		{
-			return EditorPrefs.GetBool(KEY_ENABLE);
-		}
-		else
-		{
-			EditorPrefs.SetBool(KEY_ENABLE, true);
-			return true;
-		}
+		return true;
 	}
 
 	public static void RefreshSettings()
@@ -77,16 +59,12 @@ public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuil
 	}
 	public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report)
 	{
-		_logPath = EditorPrefs.GetString(KEY_LOG);
 		_enabled = GetEnabled();
 
 		if (_enabled)
 		{
 			Debug.Log("Initialising ShaderStrippers");
-			if (!string.IsNullOrEmpty(_logPath))
-			{
-				Debug.Log("Logfiles will be created in " + _logPath);
-			}
+
 			_keptLog.Clear();
 			_keptLog.Add("Unstripped Shaders:");
 			RefreshSettings();
@@ -138,9 +116,8 @@ public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuil
 			}
 		}
 
-		string logPath = EditorPrefs.GetString(KEY_LOG);
 		ShaderStripperBase.OnPostBuild(
-			logPath, header, _keptLog, _allKeywords, _keptKeywords,
+			header, _keptLog, _allKeywords, _keptKeywords,
 			_allPlatformKeywordNames, _keptPlatformKeywordNames,
 			strippedKeywords, strippedPlatformKeywords
 		);
