@@ -402,7 +402,6 @@ public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuil
 		}
 		if (!dupe)
 		{ 
-			Debug.Log("Shader = " + sv.shader.name + ", passType = " + sv.passType);
 			variants.Add(sv);
 		}
 	}
