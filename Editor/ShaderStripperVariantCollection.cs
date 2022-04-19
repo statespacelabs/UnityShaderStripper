@@ -4,12 +4,12 @@ using UnityEngine.Rendering;
 using UnityEditor;
 using UnityEditor.Rendering;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
     /// <summary>
     /// Strips ALL shaders and variants except those in the supplied ShaderVariantCollection assets.
     /// Does not strip built-in shaders.
     /// </summary>
-    [CreateAssetMenu(menuName="Sigtrap/Shader Stripper Variant Collection")]
+    [CreateAssetMenu(menuName="ShaderStripper/Shader Stripper Variant Collection")]
     public class ShaderStripperVariantCollection : ShaderStripperBase {
 
         [SerializeField][Tooltip("Only shader variants in these collections will NOT be stripped (except built-in shaders).")]

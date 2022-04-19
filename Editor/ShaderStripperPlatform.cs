@@ -2,11 +2,11 @@
 using UnityEngine;
 using UnityEditor.Rendering;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
     /// <summary>
 	/// Strips shaders by shader compiler platform.
 	/// </summary>
-	[CreateAssetMenu(menuName="Sigtrap/Shader Stripper Platform")]
+	[CreateAssetMenu(menuName="ShaderStripper/Shader Stripper Platform")]
     public class ShaderStripperPlatform : ShaderStripperBase {
         [SerializeField][Tooltip("If checked, use as whitelist. Otherwise, blacklist.")]
         bool _whitelist;

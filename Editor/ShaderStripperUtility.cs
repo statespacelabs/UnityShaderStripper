@@ -5,7 +5,7 @@ using UnityEditor.Rendering;
 using UnityEngine.Rendering;
 using UnityEditor;
 using System.Linq;
-using Sigtrap.Editors.ShaderStripper;
+using AimLab.ShaderStripper;
 
 public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuildWithReport, IPostprocessBuildWithReport
 {

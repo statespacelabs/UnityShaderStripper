@@ -3,11 +3,11 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor.Rendering;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
 	/// <summary>
 	/// Strips shaders by shader name and pass name.
 	/// </summary>
-	[CreateAssetMenu(menuName="Sigtrap/Shader Stripper Simple")]
+	[CreateAssetMenu(menuName="ShaderStripper/Shader Stripper Simple")]
 	public class ShaderStripperSimple : ShaderStripperBase {
 		[SerializeField][Tooltip("If shader name matches ANY of these, will be considered for stripping.")]
 		List<StringMatch> _blacklistedShaderNames;

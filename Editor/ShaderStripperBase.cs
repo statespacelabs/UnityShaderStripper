@@ -4,7 +4,7 @@ using UnityEngine.Rendering;
 using UnityEditor.Rendering;
 using UnityEditor;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
 	public class ShaderLog {
 		public List<string> log = new List<string>();
 		public string logName {get; private set;}

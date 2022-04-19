@@ -4,11 +4,11 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
     /// <summary>
 	/// Strips shaders by shader asset path.
 	/// </summary>
-	[CreateAssetMenu(menuName="Sigtrap/Shader Force Keywords")]
+	[CreateAssetMenu(menuName="ShaderStripper/Shader Force Keywords")]
     public class ShaderForceKeywords : ShaderStripperBase {
         [System.Serializable]
         struct ForceBuiltin {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Sigtrap.Editors.ShaderStripper
+namespace AimLab.ShaderStripper
 {
 	public static class YamlHelper
 	{

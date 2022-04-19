@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
 using UnityEditor;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
     /// <summary>
 	/// Strips shaders by shader asset path.
 	/// </summary>
-	[CreateAssetMenu(menuName="Sigtrap/Shader Stripper Path")]
+	[CreateAssetMenu(menuName="ShaderStripper/Shader Stripper Path")]
     public class ShaderStripperPath : ShaderStripperBase {
         [SerializeField]
         StringMatch[] _pathBlacklist;

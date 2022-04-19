@@ -3,11 +3,11 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor.Rendering;
 
-namespace Sigtrap.Editors.ShaderStripper {
+namespace AimLab.ShaderStripper {
     /// <summary>
 	/// Strips shaders by shader tier.
 	/// </summary>
-	[CreateAssetMenu(menuName="Sigtrap/Shader Stripper Tier")]
+	[CreateAssetMenu(menuName="ShaderStripper/Shader Stripper Tier")]
     public class ShaderStripperTier : ShaderStripperBase, ISerializationCallbackReceiver {
         [System.Serializable]
         struct TierData {
