@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using System.Collections.Generic;
+
 namespace Sigtrap.Editors.ShaderStripper
 {
 	public class MaterialTool : EditorWindow
@@ -33,6 +35,5 @@ namespace Sigtrap.Editors.ShaderStripper
 				}
 			}
 		}
-
 	}
 }

@@ -235,4 +235,190 @@ public class ShaderStripperUtility : Object, IPreprocessShaders, IPreprocessBuil
 			}
 		}
 	}
+
+	public static Dictionary<Shader, Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>> ParseShaderVariantCollections(List<ShaderVariantCollection> _whitelistedCollections, List<string> _tempExcludes = null, List<long> builtinShadersWithNoKeywords = null, List<string> customShadersWithNoKeywords = null)
+	{
+		var _variantsByShader = new Dictionary<Shader, Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>>();
+		foreach (var c in _whitelistedCollections)
+		{
+			// Load asset YAML
+			var file = new List<string>(System.IO.File.ReadAllLines(
+				(Application.dataPath + AssetDatabase.GetAssetPath(c)).Replace("AssetsAssets", "Assets")
+			));
+
+			#region Pre-process to get rid of mid-list line breaks
+			var yaml = new List<string>();
+
+			// Find shaders list
+			int i = 0;
+			for (; i < file.Count; ++i)
+			{
+				if (YamlHelper.YamlLineHasKey(file[i], "m_Shaders")) break;
+			}
+
+			// Process and fill
+			int indent = 0;
+			for (; i < file.Count; ++i)
+			{
+				string f = file[i];
+				int myIndent = YamlHelper.GetYamlIndent(f);
+				if (myIndent > indent)
+				{
+					// If no "<key>: ", continuation of previous line
+					if (!f.EndsWith(":") && !f.Contains(": "))
+					{
+						yaml[yaml.Count - 1] += " " + f.Trim();
+						continue;
+					}
+				}
+
+				yaml.Add(f);
+				indent = myIndent;
+			}
+			#endregion
+
+			#region Iterate over shaders
+			var yamlCount = yaml.Count;
+			for (i = 0; i < yamlCount; ++i)
+			{
+				string y = yaml[i];
+				if (yaml[i].Contains("first:"))
+				{
+					string guid = YamlHelper.GetValueFromYaml(y, "guid");
+					string fileID = YamlHelper.GetValueFromYaml(y, "fileID");
+					Shader s = AssetDatabase.LoadAssetAtPath<Shader>(AssetDatabase.GUIDToAssetPath(guid));
+					if (s == null)
+					{
+						var fileIDint = int.Parse(fileID);
+						if (fileIDint == 46)
+						{
+							s = Shader.Find("Standard");
+						}
+						else if (fileIDint == 45)
+						{
+							s = Shader.Find("Standard (Specular setup)");
+						}
+					}
+					// Move to variants contents (skip current line, "second:" and "variants:")
+
+					if (yaml[i + 2].Contains("[]"))
+					{
+						AddToShadersWithNoKeywords(guid, fileID, builtinShadersWithNoKeywords, customShadersWithNoKeywords);
+						continue;
+					}
+
+					i += 3;
+
+					if (i >= yamlCount)
+					{
+						break;
+					}
+
+					indent = YamlHelper.GetYamlIndent(yaml[i]);
+					var sv = new ShaderVariantCollection.ShaderVariant();
+					var variantNumber = 0;
+					for (; i < yamlCount; ++i)
+					{
+						y = yaml[i];
+						if (y == null) continue;
+
+						// If indent changes, variants have ended
+						if (YamlHelper.GetYamlIndent(y) != indent)
+						{
+							// Outer loop will increment, so counteract
+							i -= 1;
+							break;
+						}
+
+						if (YamlHelper.IsYamlLineNewEntry(y))
+						{
+							// First entry will be a new entry but no variant info present yet, so skip
+							// Builtin shaders will also be null
+							if (sv.shader != null)
+							{
+								UpdateVariantsList(_variantsByShader, sv);
+							}
+
+							sv.shader = s;
+						}
+
+						// Get contents
+						if (YamlHelper.YamlLineHasKey(y, "passType"))
+						{
+							sv.passType = (PassType)int.Parse(YamlHelper.GetValueFromYaml(y, "passType"));
+						}
+
+						if (YamlHelper.YamlLineHasKey(y, "keywords"))
+						{
+							if (i < yamlCount - 2 && variantNumber == 0 && y.EndsWith(": "))
+							{
+								var banjo = yaml[i + 2];
+								if (banjo != null && !banjo.Contains("keywords:")) 
+								{ 
+									AddToShadersWithNoKeywords(guid, fileID, builtinShadersWithNoKeywords, customShadersWithNoKeywords);
+								}
+							}
+
+							sv.keywords = YamlHelper.GetValuesFromYaml(y, "keywords", _tempExcludes);
+
+							variantNumber++;
+						}
+					}
+					// Get final variant
+					if (sv.shader != null)
+					{
+						UpdateVariantsList(_variantsByShader, sv);
+					}
+				}
+			}
+			#endregion
+		}
+
+		return _variantsByShader;
+	}
+
+	private static void UpdateVariantsList(Dictionary<Shader, Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>> variantsByShader, ShaderVariantCollection.ShaderVariant sv)
+    {
+		Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>> variantsByPass = null;
+		if (!variantsByShader.TryGetValue(sv.shader, out variantsByPass))
+		{
+			variantsByPass = new Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>();
+			variantsByShader.Add(sv.shader, variantsByPass);
+		}
+		List<ShaderVariantCollection.ShaderVariant> variants = null;
+		if (!variantsByPass.TryGetValue(sv.passType, out variants))
+		{
+			variants = new List<ShaderVariantCollection.ShaderVariant>();
+			variantsByPass.Add(sv.passType, variants);
+		}
+		bool dupe = false;
+		foreach (var existing in variants)
+		{
+			if (YamlHelper.ShaderVariantsEqual(existing, sv))
+			{
+				dupe = true;
+				break;
+			}
+		}
+		if (!dupe)
+		{ 
+			Debug.Log("Shader = " + sv.shader.name + ", passType = " + sv.passType);
+			variants.Add(sv);
+		}
+	}
+
+	private static void AddToShadersWithNoKeywords(string guid, string fileID, List<long> builtinShadersWithNoKeywords, List<string> customShadersWithNoKeywords)
+	{
+		var fileIDlong = long.Parse(fileID);
+		//is builtin
+		if (string.Equals(guid, "0000000000000000f000000000000000"))
+		{
+			if(builtinShadersWithNoKeywords != null) builtinShadersWithNoKeywords.Add(fileIDlong);
+		}
+		//is custom
+		else
+		{
+			if (customShadersWithNoKeywords != null) customShadersWithNoKeywords.Add(guid);
+		}
+	}
 }

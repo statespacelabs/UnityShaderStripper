@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using System.Text;
 using UnityEditor;
 using UnityEditor.Rendering;
 
@@ -11,13 +10,11 @@ namespace Sigtrap.Editors.ShaderStripper {
     /// Does not strip built-in shaders.
     /// </summary>
     [CreateAssetMenu(menuName="Sigtrap/Shader Stripper Variant Collection")]
-    public class ShaderStripperVariantCollection : ShaderStripperBase, ISerializationCallbackReceiver {
-		[SerializeField][Tooltip("Set a path like Assets/.../<name> (no extension) to merge whitelisted collections into a new collection asset.\nPath to a whitelisted collection (to overwrite) IS allowed.")]
-		string _mergeToFile = null;
+    public class ShaderStripperVariantCollection : ShaderStripperBase {
+
         [SerializeField][Tooltip("Only shader variants in these collections will NOT be stripped (except built-in shaders).")]
         List<ShaderVariantCollection> _whitelistedCollections;
-		[SerializeField][HideInInspector]
-		List<string> _collectionPaths;
+
         [SerializeField][Tooltip("Strip Hidden shaders. Be careful - shaders in Resources might get stripped.\nHidden shaders in collections will always have their variants stripped.")]
         bool _stripHidden = false;
 		[SerializeField][Tooltip("Allow VR versions of variants in collection even when VR keywords not in collection.")]
@@ -34,17 +31,6 @@ namespace Sigtrap.Editors.ShaderStripper {
 		List<string> customShadersWithNoKeywords = new List<string>();
 
 		bool _valid = false;
-		bool _dirty = false;
-
-		#region Serialization
-		// Automagically pick up new collections which have overwritten existing ones
-		public void OnAfterDeserialize(){
-			_dirty = true;
-		}
-		public void OnBeforeSerialize(){
-			_dirty = true;
-		}
-		#endregion
 
 		static readonly string[] VR_KEYWORDS = new string[]{
 			"UNITY_SINGLE_PASS_STEREO", "STEREO_INSTANCING_ON", "STEREO_MULTIVIEW_ON"
@@ -55,45 +41,15 @@ namespace Sigtrap.Editors.ShaderStripper {
 		static List<string> _tempExcludes = new List<string>();
         Dictionary<Shader, Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>> _variantsByShader = new Dictionary<Shader, Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>>();
 
-		void ReplaceOverwrittenCollections(){
-			if (_collectionPaths != null){
-				for (int i=0; i<_whitelistedCollections.Count; ++i){
-					if (_whitelistedCollections[i] == null){
-						_whitelistedCollections[i] = AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>(_collectionPaths[i]);
-					}
-				}
-			} else {
-				_collectionPaths = new List<string>();
-			}
-			_collectionPaths.Clear();
-			foreach (var c in _whitelistedCollections){
-				if (c != null){
-					_collectionPaths.Add(AssetDatabase.GetAssetPath(c));
-				}
-			}
-		}
 		
         #region Parse YAML - thanks Unity for not having a simple ShaderVariantCollection.GetVariants or something
-		static List<string> _tempCompareShaderVariants = new List<string>();
-		bool ShaderVariantsEqual(ShaderVariantCollection.ShaderVariant a, ShaderVariantCollection.ShaderVariant b){
-			if (a.shader != b.shader || a.passType != b.passType) return false;
-			if ((a.keywords == null) != (b.keywords == null)) return false;
-			if (a.keywords.Length != b.keywords.Length) return false;
-			_tempCompareShaderVariants.Clear();
-			_tempCompareShaderVariants.AddRange(a.keywords);
-			for (int i=0; i<b.keywords.Length; ++i){
-				if (!_tempCompareShaderVariants.Contains(b.keywords[i])){
-					return false;
-				}
-			}
-			return true;
-		}
+
         public override void Initialize(){
 
 			builtinShadersWithNoKeywords.Clear();
 			customShadersWithNoKeywords.Clear();
 
-			ReplaceOverwrittenCollections();
+			//ReplaceOverwrittenCollections();
 
 			_tempExcludes.Clear();
 			if (_allowVrVariants){
@@ -103,327 +59,47 @@ namespace Sigtrap.Editors.ShaderStripper {
 				_tempExcludes.AddRange(INSTANCING_KEYWORDS);
 			}
 
-			foreach (var c in _whitelistedCollections){
-				// Load asset YAML
-				var file = new List<string>(System.IO.File.ReadAllLines(
-					(Application.dataPath + AssetDatabase.GetAssetPath(c)).Replace("AssetsAssets","Assets")
-				));
-
-				#region Pre-process to get rid of mid-list line breaks
-				var yaml = new List<string>();
-
-				// Find shaders list
-                int i = 0;
-				for (; i<file.Count; ++i){
-					if (YamlLineHasKey(file[i], "m_Shaders")) break;
-				}
-
-                // Process and fill
-                int indent = 0;
-				for (; i<file.Count; ++i){
-					string f = file[i];
-					int myIndent = GetYamlIndent(f);
-					if (myIndent > indent){
-						// If no "<key>: ", continuation of previous line
-						if (!f.EndsWith(":") && !f.Contains(": ")){
-							yaml[yaml.Count-1] += " " + f.Trim();
-							continue;
-						}
-					}
-
-					yaml.Add(f);
-					indent = myIndent;
-				}
-				#endregion
-
-				#region Iterate over shaders
-				var yamlCount = yaml.Count;
-				for (i=0; i<yamlCount; ++i){
-					string y = yaml[i];
-					if (yaml[i].Contains("first:")){
-						string guid = GetValueFromYaml(y, "guid");
-						string fileID = GetValueFromYaml(y, "fileID");
-						Shader s = AssetDatabase.LoadAssetAtPath<Shader>(AssetDatabase.GUIDToAssetPath(guid));
-						if (s == null)
-                        {
-							var fileIDint = int.Parse(fileID);
-							if (fileIDint == 46)
-                            {
-								s = Shader.Find("Standard");
-                            }
-							else if (fileIDint == 45)
-                            {
-								s = Shader.Find("Standard (Specular setup)");
-							}
-                        }
-						// Move to variants contents (skip current line, "second:" and "variants:")
-
-						if (yaml[i + 2].Contains("[]"))
-						{
-							AddToShadersWithNoKeywords(guid, fileID);
-							continue;
-						}
-
-						i += 3;
-
-						if (i >= yamlCount)
-						{
-							break;
-						}
-
-						indent = GetYamlIndent(yaml[i]);
-						var sv = new ShaderVariantCollection.ShaderVariant();
-						var variantNumber = 0;
-						for (; i<yaml.Count; ++i){
-							y = yaml[i];
-
-                            // If indent changes, variants have ended
-							if (GetYamlIndent(y) != indent){
-								// Outer loop will increment, so counteract
-								i -= 1;
-								break;
-							}
-
-							if (IsYamlLineNewEntry(y)) {
-								// First entry will be a new entry but no variant info present yet, so skip
-								// Builtin shaders will also be null
-								if (sv.shader != null){	
-                                    Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>> variantsByPass = null;
-                                    if (!_variantsByShader.TryGetValue(sv.shader, out variantsByPass)){
-                                        variantsByPass = new Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>();
-                                        _variantsByShader.Add(sv.shader, variantsByPass);
-                                    }
-                                    List<ShaderVariantCollection.ShaderVariant> variants = null;
-                                    if (!variantsByPass.TryGetValue(sv.passType, out variants)){
-                                        variants = new List<ShaderVariantCollection.ShaderVariant>();
-                                        variantsByPass.Add(sv.passType, variants);
-                                    }
-									bool dupe = false;
-									foreach (var existing in variants){
-										if (ShaderVariantsEqual(existing, sv)){
-											dupe = true;
-											break;
-										}
-									}
-									if (!dupe){
-                                    	variants.Add(sv);
-									}
-								}
-								sv = new ShaderVariantCollection.ShaderVariant();
-								sv.shader = s;
-							}
-
-                            // Get contents
-							if (YamlLineHasKey(y, "passType")){
-								sv.passType = (PassType)int.Parse(GetValueFromYaml(y, "passType"));
-							}
-							if (YamlLineHasKey(y, "keywords")){
-								if (variantNumber == 0 && y.EndsWith(": ") && !yaml[i + 2].Contains("keywords:"))
-								{
-									AddToShadersWithNoKeywords(guid, fileID);
-								}
-
-								sv.keywords = GetValuesFromYaml(y, "keywords", _tempExcludes);
-								
-								variantNumber++;
-							}
-						}
-						// Get final variant
-						if (sv.shader != null){	
-							Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>> variantsByPass = null;
-							if (!_variantsByShader.TryGetValue(sv.shader, out variantsByPass)){
-								variantsByPass = new Dictionary<PassType, List<ShaderVariantCollection.ShaderVariant>>();
-								_variantsByShader.Add(sv.shader, variantsByPass);
-							}
-							List<ShaderVariantCollection.ShaderVariant> variants = null;
-							if (!variantsByPass.TryGetValue(sv.passType, out variants)){
-								variants = new List<ShaderVariantCollection.ShaderVariant>();
-								variantsByPass.Add(sv.passType, variants);
-							}
-							bool dupe = false;
-							foreach (var existing in variants){
-								if (ShaderVariantsEqual(existing, sv)){
-									dupe = true;
-									break;
-								}
-							}
-							if (!dupe){
-								variants.Add(sv);
-							}
-						}
-					}
-                }
-				#endregion
-
+			_variantsByShader = ShaderStripperUtility.ParseShaderVariantCollections(_whitelistedCollections, _tempExcludes, builtinShadersWithNoKeywords, customShadersWithNoKeywords);
 #if SHADER_STRIPPING_LOGGING
-				LogMessage(this, "Parsing ShaderVariantCollection "+c.name);
-                // Loop over shaders
-				foreach (var s in _variantsByShader)
+			// Loop over shaders
+			foreach (var s in _variantsByShader)
+			{
+				string log = "Shader: " + s.Key.name;
+				// Loop over passes
+				foreach (var p in s.Value)
 				{
-					string log = "Shader: " + s.Key.name;
-                    // Loop over passes
-                    foreach (var p in s.Value)
+					log += string.Format("\n   Pass: ({1:00}){0}", p.Key, (int)p.Key);
+					// Loop over variants
+					for (int v = 0; v < p.Value.Count; ++v)
 					{
-                        log += string.Format("\n   Pass: ({1:00}){0}", p.Key, (int)p.Key);
-                        // Loop over variants
-                        for (int v=0; v<p.Value.Count; ++v)
+						log += string.Format("\n      Variant [{0}]:\t", v);
+						// Loop over keywords
+						var ks = p.Value[v].keywords;
+						if (ks != null && ks.Length != 0)
 						{
-                            log += string.Format("\n      Variant [{0}]:\t", v);
-                            // Loop over keywords
-							var ks = p.Value[v].keywords;
-							if (ks != null && ks.Length != 0)
+							bool first = true;
+							foreach (var k in ks)
 							{
-								bool first = true;
-								foreach (var k in ks)
-								{
-									if (!first) log += ", ";
-									log += k;
-									first = false;
-								}
-							} 
-							else 
-							{
-								log += "<no keywords>";
+								if (!first) log += ", ";
+								log += k;
+								first = false;
 							}
-                        }
-                    }
-					LogMessage(this, log);
-				}
-#endif
-			}
-
-			// Merge collections
-			if (!string.IsNullOrEmpty(_mergeToFile) && _whitelistedCollections.Count > 1){
-				var svc = new ShaderVariantCollection();
-				foreach (var a in _variantsByShader){
-					foreach (var b in a.Value){
-						foreach (var s in b.Value){
-							svc.Add(s);
+						}
+						else
+						{
+							log += "<no keywords>";
 						}
 					}
 				}
-				try {
-					string file = _mergeToFile+".shadervariants";
-					string log = string.Format("Merged following ShaderVariantCollections into {0}:\n", file);
-					foreach (var s in _whitelistedCollections){
-						log += "    "+s.name+"\n";
-					}
-					
-					if (AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>(file) != null){
-						AssetDatabase.DeleteAsset(file);
-					}
-					AssetDatabase.SaveAssets();
-					AssetDatabase.Refresh();
-					AssetDatabase.CreateAsset(svc, file);
-					AssetDatabase.SaveAssets();
-					AssetDatabase.Refresh();
-
-					Debug.Log(log, AssetDatabase.LoadAssetAtPath<ShaderVariantCollection>(file));
-				} catch (System.Exception ex){
-					Debug.LogError("Error merging ShaderVariantCollections. Exception follows: " + ex);
-					throw;
-				}
+				LogMessage(this, log);
 			}
-
+#endif
 			_valid = (_variantsByShader != null && _variantsByShader.Count > 0);
 		}
 
-        private void AddToShadersWithNoKeywords(string guid, string fileID)
-        {
-			var fileIDlong = long.Parse(fileID);
-			//is builtin
-			if (string.Equals(guid, "0000000000000000f000000000000000"))
-			{
-				builtinShadersWithNoKeywords.Add(fileIDlong);
-			}
-			//is custom
-			else
-			{
-				customShadersWithNoKeywords.Add(guid);
-			}
-		}
+		#endregion
 
-        int GetYamlIndent(string line){
-			for (int i=0; i<line.Length; ++i){
-				if (line[i] != ' ' && line[i] != '-') return i;
-			}
-			return 0;
-		}
-		bool IsYamlLineNewEntry(string line){
-			foreach (var c in line){
-				// If a dash (before a not-space appears) this is a new entry
-				if (c == '-') return true;
-				// If not a dash, must be a space or indent has ended
-				if (c != ' ') return false;
-			}
-			return false;
-		}
-		int GetIndexOfYamlValue(string line, string key){
-			int i = line.IndexOf(key+":", System.StringComparison.Ordinal);
-			if (i >= 0){
-				// Skip to value
-				i += key.Length + 2;
-			}
-			return i;
-		}
-		bool YamlLineHasKey(string line, string key){
-			return GetIndexOfYamlValue(line, key) >= 0;
-		}
-		string GetValueFromYaml(string line, string key){
-			int i = GetIndexOfYamlValue(line, key);
-			if (i < 0){
-				return "";
-				//throw new System.Exception((string.Format("Value not found for key {0} in YAML line {1}", key, line)));
-			}
-			StringBuilder sb = new StringBuilder();
-			for (; i<line.Length; ++i){
-				char c = line[i];
-				if (c == ',' || c == ' ') break;
-				sb.Append(c);
-			}
-			return sb.ToString();
-		}
-		string[] GetValuesFromYaml(string line, string key, List<string> exclude=null){
-			int i = GetIndexOfYamlValue(line, key);
-			if (i < 0){
-				throw new System.Exception((string.Format("Value not found for key {0} in YAML line {1}", key, line)));
-			}
-			List<string> result = new List<string>();
-			StringBuilder sb = new StringBuilder();
-			for (; i<line.Length; ++i){
-				char c = line[i];
-				bool end = false;
-				bool brk = false;
-				if (c == ','){
-					// Comma delimits keys
-					// Add the current entry and stop parsing
-					end = brk = true;
-				}
-				if (c == ' '){
-					// Space delimits entries
-					// Add current entry, move to next
-					end = true;
-				}
-				if (end){
-					result.Add(sb.ToString());
-					sb.Length = 0;
-					if (brk) break;
-				} else {
-					sb.Append(c);
-				}
-			}
-			// Catch last entry if line ends
-			if (sb.Length > 0){
-				var s = sb.ToString();
-				if (exclude==null || exclude.Count==0 || !exclude.Contains(s)){
-					result.Add(sb.ToString());
-				}
-			}
-			return result.ToArray();
-		}
-        #endregion
-
-        static List<string> _tempRequestedKeywordsToMatch = new List<string>();
+		static List<string> _tempRequestedKeywordsToMatch = new List<string>();
         static List<string> _tempRequestedKeywordsToMatchCached = new List<string>();
 		static List<string> _tempCollectedKeywordsSorted = new List<string>();
 		protected override bool StripCustom(Shader shader, ShaderSnippetData passData, IList<ShaderCompilerData> variantData) {
@@ -560,11 +236,5 @@ namespace Sigtrap.Editors.ShaderStripper {
         protected override bool _checkPass {get {return false;}}
         protected override bool _checkVariants {get {return false;}}
 
-		public override void OnGUI(){
-			if (_dirty){
-				ReplaceOverwrittenCollections();
-			}
-			_dirty = false;
-		}
     }
 }
