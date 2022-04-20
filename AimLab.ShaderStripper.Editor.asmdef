@@ -1,5 +1,5 @@
 {
-    "name": "Sigtrap.Editors.ShaderStripper",
+    "name": "AimLab.ShaderStripper",
     "rootNamespace": "",
     "references": [],
     "includePlatforms": [
