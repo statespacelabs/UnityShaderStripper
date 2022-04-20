@@ -62,24 +62,22 @@ namespace AimLab.ShaderStripper {
 
 		#region Static
 
-		static bool _deepLogs = true;
 		static List<string> _log = new List<string>();
 
 		public static string GetKeywordName(ShaderKeyword k){
 			return k.GetKeywordName();
 		}
 
-		public static void OnPreBuild(bool deepLogs){
+		public static void OnPreBuild(){
 			_log.Clear();
-			_deepLogs = deepLogs;
 		}
 
 		public static void OnPostBuild(string header, params ShaderLog[] logs)
 		{
-#if SHADER_STRIPPING_LOGGING
-			if (_log != null && _log.Count > 0)
+			Debug.Log(header);
+			if (ShaderStripperUtility.Config.Log_Stripped && _log != null && _log.Count > 0)
 			{
-				var strippedlog = header + "\n";
+				var strippedlog = string.Empty;
 				foreach (var line in _log)
 				{
 					strippedlog += line + "\n";
@@ -87,65 +85,70 @@ namespace AimLab.ShaderStripper {
 				Debug.Log("Stripped Shaders : " + strippedlog);
 			}
 
-			if (logs != null && logs.Length > 0)
+			if (ShaderStripperUtility.Config.Log_Kept && logs != null && logs.Length > 0)
 			{
 				var keptLogList = logs[0];
-				var keptLog = header + "\n";
+				var keptLog = string.Empty;
 				foreach (var line in keptLogList.log)
 				{
 					keptLog += line + "\n";
 				}
 				Debug.Log("Kept Shaders : " + keptLog);
 			}
-#endif
+
 			_log.Clear();
 		}
 
 		static protected void LogRemoval(ShaderStripperBase stripper, Shader shader, ShaderSnippetData pass){
 			if (!stripper._logOutput) return;
-#if SHADER_STRIPPING_LOGGING
+
 			string log = string.Format(
 				"Stripping shader [{0}] pass type [{1}]\n\tShaderStripper: {2}",
 				shader.name, pass.passType, stripper.name
 			);
 			_log.Add(log);
-#endif
 		}
 
 		static protected void LogRemoval(ShaderStripperBase stripper, Shader shader, ShaderSnippetData pass, int variantIndex, int variantCount, ShaderCompilerData variant){
 			if (!stripper._logOutput) return;
-#if SHADER_STRIPPING_LOGGING
+
 			string log = null;
-			if (_deepLogs){
+			if (ShaderStripperUtility.Config.Deeplog_Stripped)
+			{
 				log = string.Format(
 					"Stripping shader [{0}] pass type [{1}] variant [{2}/{3}] [{4}]\n\tShaderStripper: {5}\n\tKeywords:",
 					shader.name, pass.passType, variantIndex, variantCount-1, variant.graphicsTier, stripper.name
 				);
 				var ks = variant.shaderKeywordSet.GetShaderKeywords();
 				
-				if (ks != null && ks.Length > 0){
+				if (ks != null && ks.Length > 0)
+				{
 					bool first = true;
 					foreach (var k in variant.shaderKeywordSet.GetShaderKeywords()){
 						if (!first) log += ",";
 						log += " " + GetKeywordName(k);
 						first = false;
 					}
-				} else {
+				} 
+				else 
+				{
 					log += " <no keywords>";
 				}
-			} else {
+			} 
+			else 
+			{
 				log = string.Format(
 					"Stripping shader [{0}] pass type [{1}] variant [{2}/{3}]\n\tShaderStripper: {4}",
 					shader.name, pass.passType, variantIndex, variantCount-1, stripper.name
 				);
 			}
 			_log.Add(log);
-#endif
 		}
+
 		static protected void LogMessage(ShaderStripperBase stripper, string message, MessageType type=MessageType.None)
 		{
 			if (!stripper._logOutput) return;
-#if SHADER_STRIPPING_LOGGING
+
 			string log = string.Format("ShaderStripper {0}: {1}", stripper.name, message);
 			switch (type){
 				case MessageType.Info:
@@ -161,7 +164,6 @@ namespace AimLab.ShaderStripper {
 					_log.Add(log);
 					break;
 			}
-#endif
 		}
 
 		#endregion
@@ -223,7 +225,7 @@ namespace AimLab.ShaderStripper {
 			bool skipMatch = StripCustom(shader, passData, variantData);
 
 			if (!skipMatch){
-				if (!_checkShader && !_checkPass && !_checkVariants){
+				if (this._logOutput && !_checkShader && !_checkPass && !_checkVariants){
 					LogMessage(this, "Checks nothing; skipping.", MessageType.Warning);
 					return 0;
 				}

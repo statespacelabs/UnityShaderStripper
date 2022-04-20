@@ -60,40 +60,42 @@ namespace AimLab.ShaderStripper {
 			}
 
 			_variantsByShader = ShaderStripperUtility.ParseShaderVariantCollections(_whitelistedCollections, _tempExcludes, builtinShadersWithNoKeywords, customShadersWithNoKeywords);
-#if SHADER_STRIPPING_LOGGING
-			// Loop over shaders
-			foreach (var s in _variantsByShader)
+
+			if (ShaderStripperUtility.Config.Log_Stripped)
 			{
-				string log = "Shader: " + s.Key.name;
-				// Loop over passes
-				foreach (var p in s.Value)
+				// Loop over shaders
+				foreach (var s in _variantsByShader)
 				{
-					log += string.Format("\n   Pass: ({1:00}){0}", p.Key, (int)p.Key);
-					// Loop over variants
-					for (int v = 0; v < p.Value.Count; ++v)
+					string log = "Shader: " + s.Key.name;
+					// Loop over passes
+					foreach (var p in s.Value)
 					{
-						log += string.Format("\n      Variant [{0}]:\t", v);
-						// Loop over keywords
-						var ks = p.Value[v].keywords;
-						if (ks != null && ks.Length != 0)
+						log += string.Format("\n   Pass: ({1:00}){0}", p.Key, (int)p.Key);
+						// Loop over variants
+						for (int v = 0; v < p.Value.Count; ++v)
 						{
-							bool first = true;
-							foreach (var k in ks)
+							log += string.Format("\n      Variant [{0}]:\t", v);
+							// Loop over keywords
+							var ks = p.Value[v].keywords;
+							if (ks != null && ks.Length != 0)
 							{
-								if (!first) log += ", ";
-								log += k;
-								first = false;
+								bool first = true;
+								foreach (var k in ks)
+								{
+									if (!first) log += ", ";
+									log += k;
+									first = false;
+								}
+							}
+							else
+							{
+								log += "<no keywords>";
 							}
 						}
-						else
-						{
-							log += "<no keywords>";
-						}
 					}
+					LogMessage(this, log);
 				}
-				LogMessage(this, log);
 			}
-#endif
 			_valid = (_variantsByShader != null && _variantsByShader.Count > 0);
 		}
 
