@@ -7,3 +7,6 @@ Data driven assets for broadly specifying which shaders to strip are available t
 Create/ShaderTripper
 
 Existing assets in main Aim Lab project is found in Assets/ShaderVariants folder
+
+Although heavily modified and updated, this package is based on this old obsolete project found here:
+https://github.com/SixWays/UnityShaderStripper 
