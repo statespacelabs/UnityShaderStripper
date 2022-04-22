@@ -5,3 +5,5 @@ Tools/ShaderStripper
 
 Data driven assets for broadly specifying which shaders to strip are available through Project right click menu:
 Create/ShaderTripper
+
+Existing assets in main Aim Lab project is found in Assets/ShaderVariants folder
